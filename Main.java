@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -54,6 +55,7 @@ public class Main {
             // System.exit(0);
             inStream = new BufferedReader(new FileReader(new File(args[0])));
             processInstructions(inStream);
+            LOGGER.info("DONE!");
         }
         catch (FileNotFoundException ex) {
             LOGGER.log(Level.SEVERE, "File not found! Exiting program", ex);
@@ -154,8 +156,8 @@ public class Main {
 
         // or immediate instruction, part of the li psuedo instruction
         _coreInsMap.put("ori", new ArrayList<>());
-        _coreInsMap.get("ori").add(new MipsInstruction((short) 2, new String[] { "%s", "%s", "%d" },
-                "ori %s, %s, %s"));
+        _coreInsMap.get("ori").add(new MipsInstruction("ori", (short) 2,
+                new String[] { "%s", "%s", "%d" }, "ori %s, %s, %s", 0xd, 0, false));
         ins = _coreInsMap.get("ori").get(0);
         ins.setHasConstant(true);
         ins.setHasDestination(true);
@@ -190,10 +192,13 @@ public class Main {
      */
     private static void processInstructions(BufferedReader inStream)
             throws IOException, IllegalArgumentException {
+        LOGGER.info("Starting process instructions");
         BufferedWriter bw = null;
         try {
             String line = inStream.readLine();
-            bw = new BufferedWriter(new FileWriter(new File("result.txt")));
+            File file = new File("result.txt");
+            file.delete();
+            bw = new BufferedWriter(new FileWriter(file));
             String instruction = "";
             List<MipsInstruction> inst = null;
             // while not e.o.f
@@ -236,17 +241,28 @@ public class Main {
                     // if the arguments list size doesn't match the expected
                     // number of params
                     if (split.size() != instr.getNumOfParams()) {
-                        for (String argument : split) {
+                        Iterator<String> argIterator = split.iterator();
+                        ArrayList<String> additionalArgs = new ArrayList<>();
+                        while (argIterator.hasNext()) {
+                            String argument = argIterator.next();
+                            additionalArgs.clear();
                             if (argument.contains("(")) {
-                                split.remove(argument);
-                                String offSet = argument.substring(argument.indexOf("(") + 1,
-                                        argument.indexOf(")") + 1);
-                                String src = argument.substring(argument.indexOf(")") + 1);
-                                split.add(offSet);
-                                split.add(src);
+                                argIterator.remove();
+                                String offSet = argument.substring(0, argument.indexOf("("));
+                                String src = argument.substring(argument.indexOf("(") + 1,
+                                        argument.indexOf(")"));
+                                additionalArgs.add(offSet);
+                                additionalArgs.add(src);
                             }
                         }
-                        if (split.size() != instr.getNumOfParams()) {
+                        if (additionalArgs.size() > 0) {
+                            split.addAll(additionalArgs);
+                        }
+                        // the move and mul instructions only have 2 params, but
+                        // uses 3 behind the scenes via the addi and mult/mflo
+                        // instructions
+                        if (split.size() != instr.getNumOfParams() && !instructionArg.equals("move")
+                                && !instructionArg.equals("mul")) {
                             throw new IllegalArgumentException(
                                     String.format("Error processing line: %s", line));
                         }
@@ -254,6 +270,7 @@ public class Main {
                     String[] arr = new String[split.size()];
                     split.toArray(arr);
                     instr.setParms(arr);
+                    LOGGER.info("Converting instruction to hex");
                     if (instr.hasJumpLabel()) {
                         // if the instruction has a jump label, retrieve the
                         // label from the map
@@ -261,12 +278,14 @@ public class Main {
                         if (instructionArg.equals("beq")) {
                             argIndex = 2;
                         }
-                        bw.write(instr.convertInstructionToHex(_labelMap.get(split.get(argIndex))));
+                        bw.write(instr.convertInstructionToHex(_labelMap.get(split.get(argIndex)))
+                                + "\n");
                     }
                     else {
-                        bw.write(instr.convertInstructionToHex(0));
+                        bw.write(instr.convertInstructionToHex(0) + "\n");
                     }
                 }
+                line = inStream.readLine();
             }
         }
         finally {
@@ -327,57 +346,57 @@ public class Main {
      */
     public enum RegistersEnum {
 
-        ZERO("$zero", (byte) 0),
-        V0("$v0", (byte) 2),
-        V1("$v1", (byte) 3),
-        A0("$a0", (byte) 4),
-        A1("$a1", (byte) 5),
-        A2("$a2", (byte) 6),
-        A3("$a3", (byte) 7),
-        T0("$t0", (byte) 8),
-        T1("$t1", (byte) 9),
-        T2("$t2", (byte) 10),
-        T3("$t3", (byte) 11),
-        T4("$t4", (byte) 12),
-        T5("$t5", (byte) 13),
-        T6("$t6", (byte) 14),
-        T7("$t7", (byte) 15),
-        S0("$s0", (byte) 16),
-        S1("$s1", (byte) 17),
-        S2("$s2", (byte) 18),
-        S3("$s3", (byte) 19),
-        S4("$s4", (byte) 20),
-        S5("$s5", (byte) 21),
-        S6("$s6", (byte) 22),
-        S7("$s7", (byte) 23),
-        T8("$t8", (byte) 24),
-        T9("$t9", (byte) 25),
-        GP("$gp", (byte) 28),
-        SP("$sp", (byte) 29),
-        FP("$fp", (byte) 30),
-        RA("$ra", (byte) 31);
+        ZERO("$zero", Long.toBinaryString(0L)),
+        V0("$v0", Long.toBinaryString(2L)),
+        V1("$v1", Long.toBinaryString(3L)),
+        A0("$a0", Long.toBinaryString(4L)),
+        A1("$a1", Long.toBinaryString(5L)),
+        A2("$a2", Long.toBinaryString(6L)),
+        A3("$a3", Long.toBinaryString(7L)),
+        T0("$t0", Long.toBinaryString(8L)),
+        T1("$t1", Long.toBinaryString(9L)),
+        T2("$t2", Long.toBinaryString(10L)),
+        T3("$t3", Long.toBinaryString(11L)),
+        T4("$t4", Long.toBinaryString(12L)),
+        T5("$t5", Long.toBinaryString(13L)),
+        T6("$t6", Long.toBinaryString(14L)),
+        T7("$t7", Long.toBinaryString(15L)),
+        S0("$s0", Long.toBinaryString(16L)),
+        S1("$s1", Long.toBinaryString(17L)),
+        S2("$s2", Long.toBinaryString(18L)),
+        S3("$s3", Long.toBinaryString(19L)),
+        S4("$s4", Long.toBinaryString(20L)),
+        S5("$s5", Long.toBinaryString(21L)),
+        S6("$s6", Long.toBinaryString(22L)),
+        S7("$s7", Long.toBinaryString(23L)),
+        T8("$t8", Long.toBinaryString(24L)),
+        T9("$t9", Long.toBinaryString(25L)),
+        GP("$gp", Long.toBinaryString(28L)),
+        SP("$sp", Long.toBinaryString(29L)),
+        FP("$fp", Long.toBinaryString(30L)),
+        RA("$ra", Long.toBinaryString(31L));
 
         private final String _regName;
-        private final byte _regNum;
+        private final String _regNum;
 
-        RegistersEnum(String regName, byte regNum) {
+        RegistersEnum(String regName, String regNum) {
             _regName = regName;
             _regNum = regNum;
         }
 
         /**
-         * Get a register number based on the provided name.
+         * Get a register number in a binary string based on the provided name.
          * 
          * @param name The register name to lookup.
          * @return The register number.
          */
-        public static byte getByName(String name) {
+        public static String getByName(String name) {
             for (RegistersEnum reg : values()) {
                 if (reg.getRegName().equals(name)) {
                     return reg.getRegNum();
                 }
             }
-            return 0;
+            return "0";
         }
 
         /**
@@ -390,11 +409,11 @@ public class Main {
         }
 
         /**
-         * Get the register number
+         * Get the register number in a binary string
          * 
          * @return The register number.
          */
-        public byte getRegNum() {
+        public String getRegNum() {
             return _regNum;
         }
     }
