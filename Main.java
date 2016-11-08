@@ -253,9 +253,12 @@ public class Main {
                     instr.setParms((String[]) split.toArray());
                     if (instr.hasJumpLabel()) {
                         // if the instruction has a jump label, retrieve the
-                        // label from the map using the first instruction
-                        // argument
-                        bw.write(instr.convertInstructionToHex(_labelMap.get(split.get(0))));
+                        // label from the map
+                        int argIndex = 0;
+                        if (instructionArg.equals("beq")) {
+                            argIndex = 2;
+                        }
+                        bw.write(instr.convertInstructionToHex(_labelMap.get(split.get(argIndex))));
                     }
                     else {
                         bw.write(instr.convertInstructionToHex(0));
