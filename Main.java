@@ -13,7 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Marcus Chronabery
+ * Marcus Chronabery/Garrett O'Grady
  * CPS 250 Section 1
  * Prof. Zargham
  * 10/22/2016
@@ -177,7 +177,7 @@ public class Main {
      * @param inStream A buffered input stream used to read instructions from a
      *        text file.
      */
-    private static void processInstructions(BufferedReader inStream) {
+    private static void processInstructions(BufferedReader inStream) throws IOException {
         // read each line
         // ignore labels, unless jumping
         // look in map for commands
@@ -186,6 +186,32 @@ public class Main {
         // use convenience method of instruction class to represent instruction
         // in hex
         // write hex to output file
+        String line = inStream.readLine().trim();
+        BufferedWriter bw = new BufferedWriter(new FileWriter(new File("Filepath")));
+        int prgmCtr = 0;
+        while (line != null) {
+            String[] arg = line.split("\\s+");
+            
+            //checks if it is a label
+            if (arg[0].contains(":")) {
+                
+            } else {
+                //check if psuedoinstruction exist
+                if (_pseudoInsMap.containsKey(arg[0])) {
+                    //set variable equal to instruction
+                    List<MipsInstruction> inst = _pseudoInsMap.get(arg[0]);
+                    
+                    MipsInstruction first = inst.get(0);
+
+                    //do something instruction to get the hex code
+                    String hexVale = "";
+                    
+                    //write the hex code to the return file
+                    bw.write(hex);
+                }
+            }
+            
+        }
 
     }
 
