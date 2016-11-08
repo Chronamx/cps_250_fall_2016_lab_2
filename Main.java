@@ -200,6 +200,7 @@ public class Main {
             while (line != null) {
                 // see if the line is a label by itself, if so continue reading
                 if (line.equals("") || line.matches(".+[:]+")) {
+                    line = inStream.readLine().trim();
                     continue;
                 }
                 // gets instruction if label in on the same line - ex: loop:
