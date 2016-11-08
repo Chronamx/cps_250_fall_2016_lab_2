@@ -61,6 +61,10 @@ public class Main {
                     "Exception thrown while reading from the file! Exiting program", ex);
             System.exit(0);
         }
+        catch (IllegalArgumentException ex) {
+            LOGGER.log(Level.SEVERE, ex.getMessage() + " Exiting program.");
+            System.exit(0);
+        }
         catch (Exception ex) {
             LOGGER.log(Level.SEVERE, ex.getMessage() + " Exiting program.");
             System.exit(0);
@@ -177,7 +181,7 @@ public class Main {
      * @param inStream A buffered input stream used to read instructions from a
      *        text file.
      */
-    private static void processInstructions(BufferedReader inStream) throws IOException {
+    private static void processInstructions(BufferedReader inStream) throws IOException, IllegalArgumentException {
         // read each line
         // ignore labels, unless jumping
         // look in map for commands
@@ -187,30 +191,52 @@ public class Main {
         // in hex
         // write hex to output file
         String line = inStream.readLine().trim();
-        BufferedWriter bw = new BufferedWriter(new FileWriter(new File("Filepath")));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(new File("result.txt")));
         int prgmCtr = 0;
+        String instruction = "";
+        List<MipsInstruction> inst = null;
         while (line != null) {
-            String[] arg = line.split("\\s+");
-            
             //checks if it is a label
-            if (arg[0].contains(":")) {
-                
-            } else {
-                //check if psuedoinstruction exist
-                if (_pseudoInsMap.containsKey(arg[0])) {
-                    //set variable equal to instruction
-                    List<MipsInstruction> inst = _pseudoInsMap.get(arg[0]);
-                    
-                    MipsInstruction first = inst.get(0);
-
-                    //do something instruction to get the hex code
-                    String hexVale = "";
-                    
-                    //write the hex code to the return file
-                    bw.write(hex);
+            if (!line.contains(":") && line.contains(",")) {
+                //gets instruction if label in on the same line - ex: loop:  addi $s1, $s0, $s3
+                if (line.contains(":")) {
+                    instruction = line.substring(line.indexOf(':') + 1).trim();
+                } else {
+                    instruction = line;
                 }
-            }
-            
+
+                String psuedoinstruction = instruction.split("\\s+")[0];
+                String mipsCode = instruction.substring(line.indexOf(' ') + 1).replaceAll("\\s+","");
+
+                if (_pseudoInsMap.containsKey(psuedoinstruction)) {
+                    //set variable equal to instruction
+                    inst = _pseudoInsMap.get(psuedoinstruction);
+
+                } else if (_coreInsMap.containsKey(psuedoinstruction)) {
+                    inst = _coreInsMap.get(psuedoinstruction);
+                } else {
+                    throw new IllegalArgumentException("The instruction not found");
+                }
+
+                String[] split = mipsCode.split(",");
+
+                for (MipsInstruction instruction : inst) {
+                    if (split.size() != instruction.getNumOfParams()) {
+                        for (String argument : split) {
+                            if (argument.contains("(")) {
+                                split.remove(argument);
+                                String offSet = argument.substring(argument.indexOf("(") + 1,
+                                        argument.indexOf(")") + 1);
+                                String src = argument.substring(argument.indexOf(")") + 1);
+                                split.add(offSet);
+                                split.add(src);
+                            }
+                        }
+                    }
+                    instruction.setParms((String[]) split.toArray());
+                    bw.write(instruction.convertInstructionToHex(0));
+                }
+            } 
         }
 
     }
