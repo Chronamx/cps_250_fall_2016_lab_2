@@ -192,15 +192,16 @@ public class Main {
             throws IOException, IllegalArgumentException {
         BufferedWriter bw = null;
         try {
-            String line = inStream.readLine().trim();
+            String line = inStream.readLine();
             bw = new BufferedWriter(new FileWriter(new File("result.txt")));
             String instruction = "";
             List<MipsInstruction> inst = null;
             // while not e.o.f
             while (line != null) {
+                line = line.trim();
                 // see if the line is a label by itself, if so continue reading
                 if (line.equals("") || line.matches(".+[:]+")) {
-                    line = inStream.readLine().trim();
+                    line = inStream.readLine();
                     continue;
                 }
                 // gets instruction if label in on the same line - ex: loop:
@@ -250,7 +251,9 @@ public class Main {
                                     String.format("Error processing line: %s", line));
                         }
                     }
-                    instr.setParms((String[]) split.toArray());
+                    String[] arr = new String[split.size()];
+                    split.toArray(arr);
+                    instr.setParms(arr);
                     if (instr.hasJumpLabel()) {
                         // if the instruction has a jump label, retrieve the
                         // label from the map
@@ -305,6 +308,7 @@ public class Main {
         String line = inStream.readLine().trim();
         int prgmCtr = 0;
         while (line != null) {
+            line = line.trim();
             final int lblInd = line.indexOf(":");
             // if the line contains a semi-colon, it has a label
             if (lblInd > 0) {
@@ -312,7 +316,7 @@ public class Main {
                 _labelMap.put(line.substring(0, lblInd).trim(), prgmCtr);
             }
             // read next line
-            line = inStream.readLine().trim();
+            line = inStream.readLine();
             // increment program counter
             prgmCtr += 4;
         }
@@ -359,6 +363,21 @@ public class Main {
         RegistersEnum(String regName, byte regNum) {
             _regName = regName;
             _regNum = regNum;
+        }
+
+        /**
+         * Get a register number based on the provided name.
+         * 
+         * @param name The register name to lookup.
+         * @return The register number.
+         */
+        public static byte getByName(String name) {
+            for (RegistersEnum reg : values()) {
+                if (reg.getRegName().equals(name)) {
+                    return reg.getRegNum();
+                }
+            }
+            return 0;
         }
 
         /**
