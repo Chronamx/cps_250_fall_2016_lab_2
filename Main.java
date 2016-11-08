@@ -5,8 +5,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,48 +183,57 @@ public class Main {
      * 
      * @param inStream A buffered input stream used to read instructions from a
      *        text file.
+     * @throws IOException When an error occurs during reading or writing of a
+     *         file.
+     * @throws IllegalArgumentException When an instruction is not found or the
+     *         syntax is incorrect.
      */
-    private static void processInstructions(BufferedReader inStream) throws IOException, IllegalArgumentException {
-        // read each line
-        // ignore labels, unless jumping
-        // look in map for commands
-        // validate command syntax
-        // if psuedo command, substitute other commands.
-        // use convenience method of instruction class to represent instruction
-        // in hex
-        // write hex to output file
-        String line = inStream.readLine().trim();
-        BufferedWriter bw = new BufferedWriter(new FileWriter(new File("result.txt")));
-        int prgmCtr = 0;
-        String instruction = "";
-        List<MipsInstruction> inst = null;
-        while (line != null) {
-            //checks if it is a label
-            if (!line.contains(":") && line.contains(",")) {
-                //gets instruction if label in on the same line - ex: loop:  addi $s1, $s0, $s3
-                if (line.contains(":")) {
+    private static void processInstructions(BufferedReader inStream)
+            throws IOException, IllegalArgumentException {
+        BufferedWriter bw = null;
+        try {
+            String line = inStream.readLine().trim();
+            bw = new BufferedWriter(new FileWriter(new File("result.txt")));
+            String instruction = "";
+            List<MipsInstruction> inst = null;
+            // while not e.o.f
+            while (line != null) {
+                // see if the line is a label by itself, if so continue reading
+                if (line.equals("") || line.matches(".+[:]+")) {
+                    continue;
+                }
+                // gets instruction if label in on the same line - ex: loop:
+                // addi $s1, $s0, $s3
+                else if (line.contains(":")) {
                     instruction = line.substring(line.indexOf(':') + 1).trim();
-                } else {
+                }
+                else {
                     instruction = line;
                 }
+                String instructionArg = instruction.split(" ")[0];
+                String mipsCode =
+                        instruction.substring(line.indexOf(' ') + 1).replaceAll("\\s+", "");
 
-                String psuedoinstruction = instruction.split("\\s+")[0];
-                String mipsCode = instruction.substring(line.indexOf(' ') + 1).replaceAll("\\s+","");
-
-                if (_pseudoInsMap.containsKey(psuedoinstruction)) {
-                    //set variable equal to instruction
-                    inst = _pseudoInsMap.get(psuedoinstruction);
-
-                } else if (_coreInsMap.containsKey(psuedoinstruction)) {
-                    inst = _coreInsMap.get(psuedoinstruction);
-                } else {
-                    throw new IllegalArgumentException("The instruction not found");
+                if (_pseudoInsMap.containsKey(instructionArg)) {
+                    // set variable equal to instruction
+                    inst = _pseudoInsMap.get(instructionArg);
+                }
+                else if (_coreInsMap.containsKey(instructionArg)) {
+                    inst = _coreInsMap.get(instructionArg);
+                }
+                else {
+                    throw new IllegalArgumentException(
+                            "The instruction was not found or is not implemented in this project!");
                 }
 
-                String[] split = mipsCode.split(",");
+                ArrayList<String> split = new ArrayList<String>();
+                // split the arguments on a comma
+                split.addAll(Arrays.asList(mipsCode.split(",")));
 
-                for (MipsInstruction instruction : inst) {
-                    if (split.size() != instruction.getNumOfParams()) {
+                for (MipsInstruction instr : inst) {
+                    // if the arguments list size doesn't match the expected
+                    // number of params
+                    if (split.size() != instr.getNumOfParams()) {
                         for (String argument : split) {
                             if (argument.contains("(")) {
                                 split.remove(argument);
@@ -233,11 +244,28 @@ public class Main {
                                 split.add(src);
                             }
                         }
+                        if (split.size() != instr.getNumOfParams()) {
+                            throw new IllegalArgumentException(
+                                    String.format("Error processing line: %s", line));
+                        }
                     }
-                    instruction.setParms((String[]) split.toArray());
-                    bw.write(instruction.convertInstructionToHex(0));
+                    instr.setParms((String[]) split.toArray());
+                    if (instr.hasJumpLabel()) {
+                        // if the instruction has a jump label, retrieve the
+                        // label from the map using the first instruction
+                        // argument
+                        bw.write(instr.convertInstructionToHex(_labelMap.get(split.get(0))));
+                    }
+                    else {
+                        bw.write(instr.convertInstructionToHex(0));
+                    }
                 }
-            } 
+            }
+        }
+        finally {
+            if (bw != null) {
+                bw.close();
+            }
         }
     }
 
